@@ -2,6 +2,7 @@
 
 *.pkl
 *.venv
+*__pycache__/
 
 # (Optional) Ignore specific folder of pickles
 
