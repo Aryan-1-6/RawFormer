@@ -14,12 +14,9 @@ from config import (
     VAL_EVERY, PATIENCE, CHECKPOINT_DIR, CHECKPOINT_NAME
 )
 from data.dataloader   import load_ptb, flatten, create_windows
-from rawformer.decoder import Decoder 
-from rawformer.loss import Loss_CrossCategoricalEntropy
-from rawformer.optimizer import OptimizerAdam
+from rawformer import Decoder, Loss_CrossCategoricalEntropy, OptimizerAdam  
 
 from checkpoint import save_model
-
 
 def train():
     # ------------------------------------------------------------------ #

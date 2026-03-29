@@ -4,9 +4,7 @@ from math import sqrt
 from nltk.tokenize import word_tokenize
 from gensim.models import Word2Vec
 
-from rawformer.layers import Layer_Dense, LayerNorm
-from rawformer.activations import Activation_Softmax
-from rawformer.blocks import DecoderBlock
+from rawformer import Layer_Dense, LayerNorm, Activation_Softmax, DecoderBlock
 
 
 class Decoder:

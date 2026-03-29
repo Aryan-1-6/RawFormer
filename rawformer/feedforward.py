@@ -1,6 +1,5 @@
 import cupy as np
-from rawformer.layers import Layer_Dense
-from rawformer.activations import Activation_ReLU
+from rawformer import Layer_Dense, Activation_ReLU
 
 
 class FeedForward:

@@ -1,7 +1,5 @@
 import cupy as np
-from rawformer.layers import LayerNorm
-from rawformer.attention import SelfAttention
-from rawformer.feedforward import FeedForward
+from rawformer import LayerNorm, SelfAttention, FeedForward
 
 
 class DecoderBlock:

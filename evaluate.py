@@ -8,10 +8,10 @@ Run: python evaluate.py
 import math
 import cupy as np
 
-from config          import TEST_TOKENS, TRAIN_TOKENS, VAL_TOKENS, TEST_PATH, TRAIN_PATH, CONTEXT, BATCH_SIZE, CHECKPOINT_DIR, CHECKPOINT_NAME
+from config import TEST_TOKENS, TRAIN_TOKENS, VAL_TOKENS, TEST_PATH, TRAIN_PATH, CONTEXT, BATCH_SIZE, CHECKPOINT_DIR, CHECKPOINT_NAME
 from data.dataloader import load_ptb, flatten, create_windows
-from rawformer.decoder import Decoder 
-from checkpoint      import load_model
+from rawformer import Decoder 
+from checkpoint import load_model
 
 
 def test_perplexity(model, X_test, Y_test, batch_size=64):
