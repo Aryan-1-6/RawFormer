@@ -1,0 +1,12 @@
+# Ignore all pickle files
+
+*.pkl
+*.venv
+
+# (Optional) Ignore specific folder of pickles
+
+# data/*.pkl
+
+# (Optional) Ignore all pickle-related variants
+
+*.pickle
