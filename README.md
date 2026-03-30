@@ -254,12 +254,9 @@ No PyTorch. No TensorFlow. No JAX.
 
 ---
 
-## 🤝 Contributing
+## 🤝 Collab
 
-Found a gradient bug? Have a cleaner backward derivation? Open a PR.
-Suggested to use this for observation and experimentation on internals of transformers.
-
-For Example - segregate model components based on time metrics to corner expensive areas.
+Any type of contribution or suggestion is welcomed.
 
 ---
 
