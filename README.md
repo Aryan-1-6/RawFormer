@@ -21,7 +21,7 @@
 
 > **"Wanted to understand transformers at the deepest level possible — so threw away every framework and built on concepts directly."**
 
-RawFormer is a fully working **decoder-only GPT transformer** trained on GPU, with zero dependency on PyTorch, TensorFlow, or any autograd engine. Every weight update, every backward pass, every kernel call — written from scratch in CuPy.
+RawFormer is a fully working **decoder-only transformer** trained on GPU, with zero dependency on PyTorch, TensorFlow, or any autograd engine. Every weight update, every backward pass, every kernel call — written from scratch in CuPy.
 
 This is a fully functional implementation trained on real data (Penn Treebank),
 achieving meaningful perplexity while keeping every computation transparent.
