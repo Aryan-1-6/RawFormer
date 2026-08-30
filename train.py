@@ -5,13 +5,15 @@ Run: python train.py
 
 import math
 import cupy as np
+from time import perf_counter
 
 from config import (
     TRAIN_PATH, TEST_PATH, VALID_PATH,
     TRAIN_TOKENS, VAL_TOKENS, TEST_TOKENS,
     EMBD_DIM, NUM_LAYERS, N_HEADS, CONTEXT,
     EPOCHS, BATCH_SIZE, LEARNING_RATE, WARMUP_STEPS,
-    VAL_EVERY, PATIENCE, CHECKPOINT_DIR, CHECKPOINT_NAME
+    VAL_EVERY, PATIENCE, CHECKPOINT_DIR, CHECKPOINT_NAME, 
+    DEBUG, DEBUG_OPTIONS
 )
 from data.dataloader   import load_ptb, flatten, create_windows
 from rawformer import Decoder, Loss_CrossCategoricalEntropy, OptimizerAdam  
@@ -31,6 +33,12 @@ def train():
     train_stream = train_stream_og[:TRAIN_TOKENS]
     vocab_stream = train_stream_og[:TRAIN_TOKENS + VAL_TOKENS + TEST_TOKENS]
     val_stream   = train_stream_og[TRAIN_TOKENS : TRAIN_TOKENS + VAL_TOKENS]
+
+    if not DEBUG:
+        deb = None 
+    else:
+        deb = DEBUG_OPTIONS
+        
     # ------------------------------------------------------------------ #
     # 2. Model
     # ------------------------------------------------------------------ #
@@ -42,6 +50,7 @@ def train():
         embd_dim   = EMBD_DIM,
         context    = CONTEXT,
         tokenise   = False,
+        DEBUG      = deb
     )
 
     train_ids = np.array([model.vocab[w] for w in train_stream])
@@ -66,6 +75,8 @@ def train():
 
     best_val_ppl     = float('inf')
     patience_counter = 0
+    loss_start = 0
+    opt = None
 
     # ------------------------------------------------------------------ #
     # 4. Epoch loop
@@ -82,6 +93,9 @@ def train():
 
         # ---- Batch loop ----
         for b in range(0, len(X_train), BATCH_SIZE):
+            if DEBUG : 
+                start = perf_counter()
+
             X_batch = X_train[b : b + BATCH_SIZE]
             Y_batch = Y_train[b : b + BATCH_SIZE]
 
@@ -90,6 +104,7 @@ def train():
 
             logits = model.forward(X_batch)
             loss   = loss_fn.calculate(logits, Y_batch)
+
             loss_fn.backward(logits, Y_batch)
             model.backward(loss_fn.dinputs)
 
@@ -102,6 +117,8 @@ def train():
             model.lm_head.weights = model.embeddings.T
 
             epoch_loss += loss
+
+            if DEBUG : print(f"Single Batch latency : {perf_counter() - start}\n")
 
         train_loss = (epoch_loss / num_batches).get()
 
@@ -121,12 +138,12 @@ def train():
             val_ppl       = math.exp(mean_val_loss)
 
             # Early stopping
-            if val_ppl < best_val_ppl:
-                best_val_ppl     = val_ppl
-                patience_counter = 0
-                save_model(model, f"{CHECKPOINT_DIR}/best_{CHECKPOINT_NAME}")
-            else:
-                patience_counter += 1
+            # if val_ppl < best_val_ppl:
+            #     best_val_ppl     = val_ppl
+            #     patience_counter = 0
+            #     save_model(model, f"{CHECKPOINT_DIR}/best_{CHECKPOINT_NAME}")
+            # else:
+            #     patience_counter += 1
 
             print(
                 f"Epoch {epoch:>3} | "
@@ -136,10 +153,10 @@ def train():
                 f"patience: {patience_counter}/{PATIENCE}"
             )
 
-            if patience_counter >= PATIENCE:
-                print(f"\nEarly stopping at epoch {epoch}. "
-                      f"Best val perplexity: {best_val_ppl:.2f}")
-                break
+            # if patience_counter >= PATIENCE:
+            #     print(f"\nEarly stopping at epoch {epoch}. "
+            #           f"Best val perplexity: {best_val_ppl:.2f}")
+                # break
         else:
             print(f"Epoch {epoch:>3} | train loss: {train_loss:.4f}")
 
@@ -149,4 +166,5 @@ def train():
 
 
 if __name__ == "__main__":
+    print("snkd")
     train()

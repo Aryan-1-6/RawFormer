@@ -76,7 +76,7 @@ def evaluate():
         context    = CONTEXT,
         tokenise   = False,
     )
-    model = load_model(f"{CHECKPOINT_DIR}/best_{CHECKPOINT_NAME}", model)
+    model = load_model(f"{CHECKPOINT_DIR}/{CHECKPOINT_NAME}", model)
 
     # ---- Build test windows (handle OOV with <unk> if present) ----
     unk_id   = model.vocab.get('<unk>', 0)

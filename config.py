@@ -32,3 +32,11 @@ PATIENCE   = 5        # stop after this many val checks with no improvement
 # ---- Checkpointing ----
 CHECKPOINT_DIR  = 'checkpoints'
 CHECKPOINT_NAME = 'rawformer.pkl'
+
+DEBUG = True
+DEBUG_OPTIONS = {
+    "attn" : True,
+    "ffn" : True,
+    "block" : True,
+    "total":True
+}

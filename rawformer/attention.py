@@ -1,9 +1,9 @@
 import cupy as np
 from rawformer import Layer_Dense, Activation_Softmax
-
+from time import perf_counter
 
 class SelfAttention:
-    def __init__(self, embd_dim, context):
+    def __init__(self, embd_dim, context, **kwargs):
         self.embd_dim  = embd_dim
         self.scale     = 1.0 / np.sqrt(embd_dim)
 
@@ -15,11 +15,18 @@ class SelfAttention:
         mask = np.triu(np.ones((context, context)), k=1)
         mask = np.where(mask == 1, -1e9, 0.0)
         self.mask = mask[np.newaxis, :, :]   # (1, T, T)
+        self.start = 0
+
+        self.debug = False
+        if kwargs['DEBUG']:
+            self.debug = kwargs['DEBUG']['attn']
 
     def get_layers(self):
         return [self.qkv_layer]
 
     def forward(self, x):
+        if self.debug : self.start = perf_counter()
+
         B, T, D = x.shape
 
         self.qkv_layer.forward(x)                                       # (B, T, 3*D)
@@ -33,9 +40,14 @@ class SelfAttention:
         self.attn_weights = self.softmax.output                         # (B, T, T)
 
         attention = np.matmul(self.attn_weights, V)                     # (B, T, D)
+
+        if self.debug : print(f"ATTN - Forward time : {perf_counter() - self.start}")
+
         return attention
 
     def backward(self, dvalues):
+        if self.debug : self.start = perf_counter()
+
         B, T, D = dvalues.shape
 
         # Gradient w.r.t V
@@ -64,5 +76,7 @@ class SelfAttention:
 
         # Backprop through fused QKV layer
         self.qkv_layer.backward(d_qkv)
+
+        if self.debug : print(f"ATTN : Backward time : {perf_counter() - self.start}")
 
         return self.qkv_layer.dinputs                                    # (B, T, D)
