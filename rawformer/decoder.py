@@ -1,11 +1,12 @@
 import cupy as np
 import cupyx
 from math import sqrt
+from time import perf_counter
 from nltk.tokenize import word_tokenize
 from gensim.models import Word2Vec
 
 from rawformer import Layer_Dense, LayerNorm, Activation_Softmax, DecoderBlock
-
+from config import DEBUG_OPTIONS
 
 class Decoder:
     """
@@ -19,12 +20,12 @@ class Decoder:
         → Softmax
     """
 
-    def __init__(self, corpus, n_heads, num_layers, embd_dim, context, tokenise=False):
+    def __init__(self, corpus, n_heads, num_layers, embd_dim, context, tokenise=False, DEBUG=None):
         if tokenise:
             self.tokenized_corpus = [word_tokenize(s.lower()) for s in corpus]
         else:
             self.tokenized_corpus = corpus
-
+            
         self.embd_dim  = embd_dim
         self.context   = context
         self.n_heads   = n_heads
@@ -40,7 +41,7 @@ class Decoder:
         self.position_encodings = self.create_positional_encoding(context)
 
         # Transformer Blocks
-        self.blocks = [DecoderBlock(embd_dim, context) for _ in range(num_layers)]
+        self.blocks = [DecoderBlock(embd_dim, context, num_block=num_block, DEBUG=DEBUG) for num_block in range(num_layers)]
 
         # Final LayerNorm
         self.final_norm = LayerNorm(embd_dim)
@@ -54,6 +55,11 @@ class Decoder:
 
         # Embedding gradient buffer
         self.dembeddings = np.zeros_like(self.embeddings)
+
+        self.debug = False
+        if DEBUG:
+            self.debug = DEBUG["total"]
+            
 
     # ------------------------------------------------------------------
     # Vocabulary
@@ -126,6 +132,8 @@ class Decoder:
     # ------------------------------------------------------------------
 
     def forward(self, input_ids):
+        if self.debug : self.start = perf_counter()
+
         self.last_input_ids = input_ids           # save for backward
 
         x = self.embeddings[input_ids]            # (B, T, D)
@@ -138,6 +146,8 @@ class Decoder:
         self.lm_head.forward(self.final_norm.output)
         self.final_act.forward(self.lm_head.output)
 
+        if self.debug : print(f"Total Forward time : {perf_counter() - self.start}")
+
         return self.final_act.output              # (B, T, vocab_size) — probabilities
 
     # ------------------------------------------------------------------
@@ -145,6 +155,8 @@ class Decoder:
     # ------------------------------------------------------------------
 
     def backward(self, dvalues):
+        if self.debug : self.start = perf_counter()
+
         self.lm_head.backward(dvalues)
 
         # Accumulate gradient into embedding matrix (weight tying)
@@ -160,5 +172,7 @@ class Decoder:
         flat_ids   = self.last_input_ids.reshape(-1)       # (B*T,)
         flat_grads = dvalues.reshape(-1, self.embd_dim)    # (B*T, D)
         cupyx.scatter_add(self.dembeddings, flat_ids, flat_grads)
+
+        if self.debug : print(f"Total Backward time : {perf_counter() - self.start}")
 
         return dvalues
