@@ -41,7 +41,7 @@ class Decoder:
         self.position_encodings = self.create_positional_encoding(context)
 
         # Transformer Blocks
-        self.blocks = [DecoderBlock(embd_dim, context, num_block=num_block, DEBUG=DEBUG) for num_block in range(num_layers)]
+        self.blocks = [DecoderBlock(embd_dim, context, n_heads, num_block=num_block, DEBUG=DEBUG) for num_block in range(num_layers)]
 
         # Final LayerNorm
         self.final_norm = LayerNorm(embd_dim)
