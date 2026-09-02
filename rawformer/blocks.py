@@ -13,9 +13,9 @@ class DecoderBlock:
     training without requiring careful learning rate warmup.
     """
 
-    def __init__(self, embd_dim, context, **kwargs):
+    def __init__(self, embd_dim, context, n_heads, **kwargs):
         self.norm1 = LayerNorm(embd_dim)
-        self.attn  = SelfAttention(embd_dim, context, DEBUG=kwargs['DEBUG'])
+        self.attn  = SelfAttention(embd_dim, context, n_heads, DEBUG=kwargs['DEBUG'])
         self.norm2 = LayerNorm(embd_dim)
         self.ffn   = FeedForward(embd_dim, DEBUG=kwargs['DEBUG'])
         self.num_block = kwargs['num_block']

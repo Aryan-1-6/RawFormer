@@ -16,7 +16,7 @@ TEST_TOKENS  =   300    # tokens after VAL_TOKENS
 # ---- Model ----
 EMBD_DIM   = 256     # embedding / hidden dimension
 NUM_LAYERS = 4       # number of transformer blocks
-N_HEADS    = 4       # number of attention heads (informational — MHA not yet implemented)
+N_HEADS    = 4       # number of attention heads
 CONTEXT    = 128     # sequence length / context window
 
 # ---- Training ----
@@ -36,7 +36,7 @@ CHECKPOINT_NAME = 'rawformer.pkl'
 DEBUG = True
 DEBUG_OPTIONS = {
     "attn" : True,
-    "ffn" : True,
-    "block" : True,
+    "ffn" : False,
+    "block" : False,
     "total":True
 }
