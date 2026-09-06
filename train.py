@@ -147,7 +147,7 @@ def train():
 
             if DEBUG : 
                 # np.cuda.Stream.null.synchronize()
-                print(f"Single Batch latency : {perf_counter() - start}\n\n\n\n\n")
+                print(f"Single Batch latency : {perf_counter() - start}\n")
 
         train_loss = (epoch_loss / num_batches).get()
 

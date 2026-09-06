@@ -6,7 +6,7 @@ class SelfAttention:
     def __init__(self, embd_dim, context, n_heads, **kwargs):
         self.embd_dim  = embd_dim
         self.n_heads = n_heads
-        self.scale     = 1.0 / np.sqrt(embd_dim)
+        self.scale     = 1.0 / np.sqrt(embd_dim).astype(np.float32)
 
         # Fused QKV projection — 3x fewer kernel launches vs separate Q, K, V layers
         self.qkv_layer = Layer_Dense(embd_dim, 3 * embd_dim)
@@ -14,7 +14,7 @@ class SelfAttention:
 
         # Causal mask: upper triangle = -1e9, lower = 0
         mask = np.triu(np.ones((context, context)), k=1)
-        mask = np.where(mask == 1, -1e9, 0.0)
+        mask = np.where(mask == 1, -1e9, 0.0).astype(np.float32)
         self.mask = mask[np.newaxis, np.newaxis, :, :]   # (1, 1, T, T)
         self.start = 0
 
