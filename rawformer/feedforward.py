@@ -17,23 +17,31 @@ class FeedForward:
         return [self.fc1, self.fc2]
 
     def forward(self, x):
-        if self.debug : self.start = perf_counter()
+        if self.debug : 
+            np.cuda.Stream.null.synchronize()
+            self.start = perf_counter()
 
         self.fc1.forward(x)
         self.act.forward(self.fc1.output)
         self.fc2.forward(self.act.output)\
 
-        if self.debug : print(f"FFN - Forward time : {perf_counter() - self.start}")
+        if self.debug : 
+            np.cuda.Stream.null.synchronize()
+            print(f"FFN - Forward time : {perf_counter() - self.start}")
 
         return self.fc2.output
 
     def backward(self, dvalues):
-        if self.debug : self.start = perf_counter()
+        if self.debug : 
+            np.cuda.Stream.null.synchronize()
+            self.start = perf_counter()
 
         self.fc2.backward(dvalues)
         self.act.backward(self.fc2.dinputs)
         self.fc1.backward(self.act.dinputs)
 
-        if self.debug : print(f"FFN : Backward time : {perf_counter() - self.start}")
+        if self.debug : 
+            np.cuda.Stream.null.synchronize()
+            print(f"FFN : Backward time : {perf_counter() - self.start}")
 
         return self.fc1.dinputs

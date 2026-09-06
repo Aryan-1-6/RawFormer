@@ -6,7 +6,7 @@ from nltk.tokenize import word_tokenize
 from gensim.models import Word2Vec
 
 from rawformer import Layer_Dense, LayerNorm, Activation_Softmax, DecoderBlock
-from config import DEBUG_OPTIONS
+from config import DEBUG_OPTIONS, DTYPE
 
 class Decoder:
     """
@@ -34,9 +34,8 @@ class Decoder:
 
         # Embeddings (random init, scaled small)
         self.embeddings = (
-            np.random.randn(self.vocab_size, self.embd_dim).astype(np.float32) * 0.02
+            np.random.randn(self.vocab_size, self.embd_dim).astype(DTYPE) * 0.02
         )
-
         # Positional Encoding (vectorized sinusoidal -> may experiment with RoPE later)
         self.position_encodings = self.create_positional_encoding(context)
 
@@ -91,22 +90,22 @@ class Decoder:
         words = list(model.wv.index_to_key)
         self.words = words
 
-        embeddings_matrix = np.zeros((len(words), model.vector_size), dtype=np.float32)
+        embeddings_matrix = np.zeros((len(words), model.vector_size), dtype=DTYPE)
         for i, word in enumerate(words):
             embeddings_matrix[i] = model.wv[word]
 
-        self.embeddings = (embeddings_matrix * sqrt(self.embd_dim)).astype(np.float32)
+        self.embeddings = (embeddings_matrix * sqrt(self.embd_dim)).astype(DTYPE)
 
     # ------------------------------------------------------------------
     # Positional Encoding (vectorized sinusoidal)
     # ------------------------------------------------------------------
 
     def create_positional_encoding(self, context):
-        pos    = np.arange(context, dtype=np.float32)[:, None]             # (T, 1)
-        dims   = np.arange(0, self.embd_dim, 2, dtype=np.float32)[None, :] # (1, D/2)
+        pos    = np.arange(context, dtype=DTYPE)[:, None]             # (T, 1)
+        dims   = np.arange(0, self.embd_dim, 2, dtype=DTYPE)[None, :] # (1, D/2)
         angles = pos / np.power(10000.0, dims / self.embd_dim)             # (T, D/2)
 
-        pe = np.zeros((1, context, self.embd_dim), dtype=np.float32)
+        pe = np.zeros((1, context, self.embd_dim), dtype=DTYPE)
         pe[0, :, 0::2] = np.sin(angles)
         pe[0, :, 1::2] = np.cos(angles)
         return pe
@@ -132,7 +131,9 @@ class Decoder:
     # ------------------------------------------------------------------
 
     def forward(self, input_ids):
-        if self.debug : self.start = perf_counter()
+        if self.debug : 
+            np.cuda.Stream.null.synchronize()
+            self.start = perf_counter()
 
         self.last_input_ids = input_ids           # save for backward
 
@@ -146,7 +147,9 @@ class Decoder:
         self.lm_head.forward(self.final_norm.output)
         self.final_act.forward(self.lm_head.output)
 
-        if self.debug : print(f"Total Forward time : {perf_counter() - self.start}")
+        if self.debug : 
+            np.cuda.Stream.null.synchronize()
+            print(f"Total Forward time : {perf_counter() - self.start}")
 
         return self.final_act.output              # (B, T, vocab_size) — probabilities
 
@@ -155,7 +158,9 @@ class Decoder:
     # ------------------------------------------------------------------
 
     def backward(self, dvalues):
-        if self.debug : self.start = perf_counter()
+        if self.debug : 
+            np.cuda.Stream.null.synchronize()
+            self.start = perf_counter()
 
         self.lm_head.backward(dvalues)
 
@@ -173,6 +178,8 @@ class Decoder:
         flat_grads = dvalues.reshape(-1, self.embd_dim)    # (B*T, D)
         cupyx.scatter_add(self.dembeddings, flat_ids, flat_grads)
 
-        if self.debug : print(f"Total Backward time : {perf_counter() - self.start}")
+        if self.debug : 
+            np.cuda.Stream.null.synchronize()
+            print(f"Total Backward time : {perf_counter() - self.start}")
 
         return dvalues

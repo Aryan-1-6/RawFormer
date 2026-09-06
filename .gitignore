@@ -2,7 +2,9 @@
 
 *.pkl
 *.venv
+*.venv-1
 *__pycache__/
+*train logs
 
 # (Optional) Ignore specific folder of pickles
 

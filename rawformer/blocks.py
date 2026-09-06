@@ -26,7 +26,9 @@ class DecoderBlock:
             self.debug = kwargs['DEBUG']['block']
 
     def forward(self, x):
-        if self.debug : self.start = perf_counter()
+        if self.debug : 
+            np.cuda.Stream.null.synchronize()
+            self.start = perf_counter()
 
         # Attention sub-layer (Pre-LN)
         residual = x
@@ -40,12 +42,16 @@ class DecoderBlock:
         ffn_out  = self.ffn.forward(x)
         x = residual + ffn_out
 
-        if self.debug : print(f"DECODER Block {self.num_block} - Forward time : {perf_counter() - self.start}")
+        if self.debug : 
+            np.cuda.Stream.null.synchronize()
+            print(f"DECODER Block {self.num_block} - Forward time : {perf_counter() - self.start}")
 
         return x
 
     def backward(self, dvalues):
-        if self.debug : self.start = perf_counter()
+        if self.debug : 
+            np.cuda.Stream.null.synchronize()
+            self.start = perf_counter()
 
         # FFN residual branch
         # Gradient flows through both: skip path (dvalues) + FFN path (d_ffn_branch)
@@ -58,6 +64,8 @@ class DecoderBlock:
         d_attn_branch = self.norm1.backward(d_attn_branch)
         dvalues = dvalues + d_attn_branch
 
-        if self.debug : print(f"DECODER Block {self.num_block} - Backward time : {perf_counter() - self.start}")
+        if self.debug : 
+            np.cuda.Stream.null.synchronize()
+            print(f"DECODER Block {self.num_block} - Backward time : {perf_counter() - self.start}")
 
         return dvalues
