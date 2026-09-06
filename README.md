@@ -19,7 +19,7 @@
 
 ---
 
-> **"Wanted to understand transformers at the deepest level possible — so threw away every framework and built on concepts directly."**
+> **"To understand transformers at the deepest level possible — throw away every framework and build on concepts directly."**
 
 RawFormer is a fully working **decoder-only transformer** trained on GPU, with zero dependency on PyTorch, TensorFlow, or any autograd engine. Every weight update, every backward pass, every kernel call — written from scratch in CuPy.
 
@@ -84,25 +84,47 @@ Getting to debug gradients open up many architectural issues and might foster mo
 
 ```python
 def backward(self, dvalues):
-    # dV = softmax_weights.T @ d_attn_out
-    dV = np.matmul(self.attn_weights.transpose(0,2,1), dvalues)
+    if self.debug : 
+        np.cuda.Stream.null.synchronize()
+        self.start = perf_counter()
+    B, T, _ = dvalues.shape
 
-    # d_softmax = d_attn_out @ V.T
-    d_attn_weights = np.matmul(dvalues, self.V.transpose(0,2,1))
+    dvalues = (dvalues.reshape((B, T, self.n_heads, self.embd_dim // self.n_heads))).transpose(0,2,1,3) # (B, T, D) -> (B, T, H, Dh) -> (B, H, T, Dh)
+
+    # Gradient w.r.t V
+    # attn_out = softmax_weights @ V  →  dV = softmax_weights.T @ d_attn_out
+    dV = np.matmul(self.attn_weights.transpose(0, 1, 3, 2), dvalues)  # (B, H, T, Dh)
+
+    # Gradient w.r.t attention weights
+    # d_attn_weights = d_attn_out @ V.T
+    d_attn_weights = np.matmul(dvalues, self.V.transpose(0, 1, 3, 2)) # (B, H, T, T)
+
+    # Backprop through softmax
     self.softmax.backward(d_attn_weights)
-    d_scores = self.softmax.dinputs
-    d_scores *= (self.mask[:, :T, :T] > -1e8)   # zero masked positions
+    d_scores = self.softmax.dinputs                                  # (B, H, T, T)
 
-    # dQ = d_scores @ K * scale
-    # dK = d_scores.T @ Q * scale
-    dQ = np.matmul(d_scores, self.K) * self.scale
-    dK = np.matmul(d_scores.transpose(0,2,1), self.Q) * self.scale
+    # Zero out gradients at masked positions
+    d_scores *= (self.mask[:, :, :T, :T] > -1e8)
 
-    # Reverse the QKV split from forward — concatenate and backprop as one
-    d_qkv = np.concatenate([dQ, dK, dV], axis=-1)
+    # Gradients w.r.t Q and K
+    # scores = Q @ K.T * scale  →  dQ = d_scores @ K * scale
+    #                               dK = d_scores.T @ Q * scale
+    dQ = np.matmul(d_scores, self.K) * self.scale                   # (B, H, T, Dh)
+    dK = np.matmul(d_scores.transpose(0, 1, 3, 2 ), self.Q) * self.scale # (B, H, T, Dh)
+
+    # Concatenate dQ, dK, dV back to single matrix
+    d_qkv = np.concatenate([dQ, dK, dV], axis=-1)                  # (B, H, T, 3*Dh)
+
+    d_qkv = (d_qkv.transpose(0,2,1,3)).reshape((B, T, 3*self.embd_dim))
+
+    # Backprop through fused QKV layer
     self.qkv_layer.backward(d_qkv)
 
-    return self.qkv_layer.dinputs
+    if self.debug : 
+        np.cuda.Stream.null.synchronize()
+        print(f"ATTN : Backward time : {perf_counter() - self.start}")
+
+    return self.qkv_layer.dinputs                                    # (B, T, D)
 ```
 No abstractions. Just math.
 
@@ -144,6 +166,7 @@ RawFormer/
 ```bash
 pip install cupy-cuda12x nltk gensim scikit-learn
 python -c "import nltk; nltk.download('punkt_tab')"
+pip install ml-dtypes
 ```
 > Change `cupy-cuda12x` to match your CUDA version: `cupy-cuda11x`, `cupy-cuda117`, etc.
 
@@ -178,15 +201,23 @@ python generate.py --prompt "the stock market" --max_len 30
 
 ## ⚙️ Recommended Config
 
+Check `config.py` file to view all recommended settings
+
 ```python
-# config.py — tuned for PTB 10k sentences
-EMBD_DIM      = 256
-NUM_LAYERS    = 4
-CONTEXT       = 128
-BATCH_SIZE    = 64
+# config.py — tuned for PTB 64k sentences
+  
+# ---- Model ----
+EMBD_DIM   = 512     # embedding / hidden dimension
+NUM_LAYERS = 4       # number of transformer blocks
+N_HEADS    = 4       # number of attention heads
+CONTEXT    = 128     # sequence length / context window
+
+# ---- Training ----
+EPOCHS       = 10
+BATCH_SIZE   = 64
 LEARNING_RATE = 0.0003
-WARMUP_STEPS  = 200
-EPOCHS        = 50
+WARMUP_STEPS  = 200    # linear LR warmup steps
+DTYPE = ml_dtypes.bfloat16 # Used for faster lower precision training instead of np.float32/np.float64
 ```
 
 <!-- ### Expected Training Curve
@@ -244,11 +275,11 @@ No PyTorch. No TensorFlow. No JAX.
 
 ## 🗺️ Roadmap
 
-- [ ] Multi-head attention (currently single-head with `n_heads` placeholder)
+- [✅] Multi-head attention
 - [ ] Top-k / nucleus sampling in generation
 - [ ] Gradient norm clipping
 - [ ] BPE tokenizer support
-- [ ] Mixed precision (float16 forward, float32 backward)
+- [✅] Mixed precision / lower precision (bfloat16 instead of float32/float64)
 - [ ] Learning rate decay schedule
 - [ ] Multi-GPU training (data parallelism)
 
