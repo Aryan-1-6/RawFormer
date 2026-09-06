@@ -13,7 +13,6 @@ from data.dataloader import load_ptb, flatten, create_windows
 from rawformer import Decoder 
 from checkpoint import load_model
 
-
 def test_perplexity(model, X_test, Y_test, batch_size=64):
     """
     Compute perplexity of the model on test windows.
@@ -53,9 +52,7 @@ def test_perplexity(model, X_test, Y_test, batch_size=64):
     print(f"  Tokens evaluated : {total_tokens:,}")
     print(f"  Mean NLL         : {mean_nll:.4f}")
     print(f"  Perplexity       : {perplexity:.2f}")
-    print(f"  Vocab size       : {model.vocab_size}  "
-          f"(random-guess baseline ≈ {model.vocab_size})")
-
+    print(f"  Vocab size       : {model.vocab_size}  ")
     return perplexity
 
 
@@ -72,7 +69,7 @@ def evaluate():
         corpus     = [vocab_stream],
         n_heads    = 4,
         num_layers = 4,
-        embd_dim   = 256,
+        embd_dim   = 512,
         context    = CONTEXT,
         tokenise   = False,
     )

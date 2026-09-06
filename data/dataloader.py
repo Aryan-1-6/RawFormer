@@ -1,17 +1,16 @@
 import cupy as np
 
 
-def load_ptb(path):
+def load_ptb(path, delim=' '):
     """
     Load a PTB-format text file.
-    Each line becomes a token list with 'sos' prepended and 'eos' appended.
     """
     with open(path, 'r', encoding='utf-8') as f:
         data = f.readlines()
 
     tokenized = []
     for line in data:
-        tokens = ['sos'] + line.strip().split() + ['eos']
+        tokens = line.strip().split(delim)
         tokenized.append(tokens)
 
     return tokenized

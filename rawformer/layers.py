@@ -1,5 +1,11 @@
 import cupy as np
+from config import DTYPE
+from time import perf_counter
+import ml_dtypes
 
+def gpu_time():
+    np.cuda.Stream.null.synchronize()
+    return perf_counter()
 
 def one_hot(Y, num_classes):
     one_hot_Y = np.zeros((Y.size, num_classes))
@@ -11,12 +17,13 @@ class Layer_Dense:
     def __init__(self, n_inputs, n_neurons, seedval=0):
         np.random.seed(seedval)
         self.weights = (
-            np.random.randn(n_inputs, n_neurons).astype(np.float32)
+            np.random.randn(n_inputs, n_neurons).astype(ml_dtypes.bfloat16)
             * np.sqrt(1.0 / n_inputs)
-        ).astype(np.float32)
-        self.biases = np.zeros((1, n_neurons), dtype=np.float32)
+        ).astype(ml_dtypes.bfloat16)
+        self.biases = np.zeros((1, n_neurons), dtype=ml_dtypes.bfloat16)
 
     def forward(self, inputs):
+        hi = gpu_time()
         self.inputs = inputs
         self.output = np.dot(inputs, self.weights) + self.biases
 
@@ -30,7 +37,6 @@ class Layer_Dense:
 
         dinputs_2d  = dvalues_2d @ self.weights.T
         self.dinputs = dinputs_2d.reshape(original_shape[:-1] + (self.weights.shape[0],))
-
 
 class LayerNorm:
     def __init__(self, emb_dim):

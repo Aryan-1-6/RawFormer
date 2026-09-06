@@ -12,13 +12,13 @@ from config import (
     TRAIN_TOKENS, VAL_TOKENS, TEST_TOKENS,
     EMBD_DIM, NUM_LAYERS, N_HEADS, CONTEXT,
     EPOCHS, BATCH_SIZE, LEARNING_RATE, WARMUP_STEPS,
-    VAL_EVERY, PATIENCE, CHECKPOINT_DIR, CHECKPOINT_NAME, 
+    VAL_EVERY, PATIENCE, CHECKPOINT_FLAG, CHECKPOINT_DIR, CHECKPOINT_NAME, 
     DEBUG, DEBUG_OPTIONS
 )
 from data.dataloader   import load_ptb, flatten, create_windows
 from rawformer import Decoder, Loss_CrossCategoricalEntropy, OptimizerAdam  
 
-from checkpoint import save_model
+from checkpoint import save_model,load_model
 
 def train():
     # ------------------------------------------------------------------ #
@@ -43,6 +43,7 @@ def train():
     # 2. Model
     # ------------------------------------------------------------------ #
     print("Building model...")
+
     model = Decoder(
         corpus     = [vocab_stream],
         n_heads    = N_HEADS,
@@ -51,7 +52,11 @@ def train():
         context    = CONTEXT,
         tokenise   = False,
         DEBUG      = deb
-    )
+        )
+
+    if CHECKPOINT_FLAG :
+        model = load_model(f"{CHECKPOINT_DIR}/{CHECKPOINT_NAME}", model)
+        print(f"Model checkpoint loaded from {CHECKPOINT_DIR}/{CHECKPOINT_NAME}")
 
     train_ids = np.array([model.vocab[w] for w in train_stream])
     val_ids   = np.array([model.vocab[w] for w in val_stream])
@@ -72,11 +77,7 @@ def train():
         warmup_steps  = WARMUP_STEPS,
     )
     layers = model.get_all_layers()   # built once, reused every epoch
-
-    best_val_ppl     = float('inf')
     patience_counter = 0
-    loss_start = 0
-    opt = None
 
     # ------------------------------------------------------------------ #
     # 4. Epoch loop
@@ -90,11 +91,37 @@ def train():
 
         epoch_loss  = 0.0
         num_batches = len(X_train) // BATCH_SIZE
-
+        ep_start = perf_counter()
         # ---- Batch loop ----
+        # for _ in range(STEPS):
         for b in range(0, len(X_train), BATCH_SIZE):
-            if DEBUG : 
+            if DEBUG :
+                # np.cuda.Stream.null.synchronize() 
                 start = perf_counter()
+
+            # indices = np.random.randint(
+            #     0,
+            #     len(X_train),
+            #     size=BATCH_SIZE
+            # )
+
+            # X_batch = X_train[indices]
+            # Y_batch = Y_train[indices]
+
+            # print(X_batch[0])
+            # print(Y_batch[0])
+            # id_to_word = {v: k for k, v in model.vocab.items()}
+            # output = []
+            # yo = []
+            # for id in X_batch[0]:
+            #     output.append(id_to_word.get(int(id), '<unk>'))
+            # for id in Y_batch[0]:
+            #     yo.append(id_to_word.get(int(id), '<unk>'))
+
+            # print(len(output))
+
+            # print(' '.join(output))
+            # print(' '.join(yo))
 
             X_batch = X_train[b : b + BATCH_SIZE]
             Y_batch = Y_train[b : b + BATCH_SIZE]
@@ -118,7 +145,9 @@ def train():
 
             epoch_loss += loss
 
-            if DEBUG : print(f"Single Batch latency : {perf_counter() - start}\n")
+            if DEBUG : 
+                # np.cuda.Stream.null.synchronize()
+                print(f"Single Batch latency : {perf_counter() - start}\n\n\n\n\n")
 
         train_loss = (epoch_loss / num_batches).get()
 
@@ -150,7 +179,8 @@ def train():
                 f"train loss: {train_loss:.4f} | "
                 f"val loss: {mean_val_loss:.4f} | "
                 f"val ppl: {val_ppl:.2f} | "
-                f"patience: {patience_counter}/{PATIENCE}"
+                f"time taken: {perf_counter() - ep_start} | "
+                f"patience: {patience_counter}/{PATIENCE}"    
             )
 
             # if patience_counter >= PATIENCE:

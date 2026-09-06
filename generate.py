@@ -9,7 +9,7 @@ import argparse
 import cupy as np
 from nltk.tokenize import word_tokenize
 
-from config     import CONTEXT, CHECKPOINT_DIR, CHECKPOINT_NAME, TRAIN_PATH
+from config     import CONTEXT, CHECKPOINT_DIR, CHECKPOINT_NAME, TRAIN_PATH, TRAIN_TOKENS
 from rawformer  import Decoder
 from checkpoint import load_model
 from data.dataloader import load_ptb, flatten
@@ -28,9 +28,9 @@ def generate(model, prompt, max_len=30, context=CONTEXT):
     Returns:
         generated string
     """
-    tokens = ['sos'] + word_tokenize(prompt.lower())
+    tokens = prompt.strip().split()
     unk_id = model.vocab.get('<unk>', 0)
-
+    output = []
     for _ in range(max_len):
         # Use only the last `context` tokens to stay within window
         window = tokens[-context:]
@@ -49,13 +49,11 @@ def generate(model, prompt, max_len=30, context=CONTEXT):
         id_to_word = {v: k for k, v in model.vocab.items()}
         next_word  = id_to_word.get(next_token_id, '<unk>')
 
-        if next_word == 'eos':
-            break
-
+        output.append(next_word)
         tokens.append(next_word)
 
     # Strip the leading 'sos' and return
-    return ' '.join(tokens[1:])
+    return ' '.join(output)
 
 
 def main():
@@ -65,17 +63,17 @@ def main():
     parser.add_argument('--max_len',  type=int, default=30,
                         help='Max new tokens to generate')
     parser.add_argument('--checkpoint', type=str,
-                        default=f"{CHECKPOINT_DIR}/best_{CHECKPOINT_NAME}",
+                        default=f"{CHECKPOINT_DIR}/{CHECKPOINT_NAME}",
                         help='Path to saved model checkpoint')
     args = parser.parse_args()
 
     # Rebuild model shell
-    train_stream = flatten(load_ptb(TRAIN_PATH))[:120_000]
+    train_stream = flatten(load_ptb(TRAIN_PATH))[:TRAIN_TOKENS]
     model = Decoder(
         corpus     = [train_stream],
         n_heads    = 4,
         num_layers = 4,
-        embd_dim   = 256,
+        embd_dim   = 512,
         context    = CONTEXT,
         tokenise   = False,
     )

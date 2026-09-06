@@ -26,12 +26,13 @@ class SelfAttention:
         return [self.qkv_layer]
 
     def forward(self, x):
-        if self.debug : self.start = perf_counter()
+        if self.debug : 
+            np.cuda.Stream.null.synchronize()
+            self.start = perf_counter()
 
         B, T, _ = x.shape
 
         self.qkv_layer.forward(x)                                       # (B, T, 3*D)
-
         # tmp = 
         Q, K, V = np.split((self.qkv_layer.output.reshape((B, T, self.n_heads, 3*self.embd_dim // self.n_heads))).transpose(0,2,1,3), 3, axis=-1)
 
@@ -47,12 +48,17 @@ class SelfAttention:
         attention = np.matmul(self.attn_weights, V)                     # (B, H, T, Dh)
 
         attention = (attention.transpose(0,2,1,3)).reshape((B, T, self.embd_dim)) # 
-        if self.debug : print(f"ATTN - Forward time : {perf_counter() - self.start}")
+
+        if self.debug : 
+            np.cuda.Stream.null.synchronize()
+            print(f"ATTN - Forward time : {perf_counter() - self.start}")
 
         return attention
 
     def backward(self, dvalues):
-        if self.debug : self.start = perf_counter()
+        if self.debug : 
+            np.cuda.Stream.null.synchronize()
+            self.start = perf_counter()
         B, T, _ = dvalues.shape
 
         dvalues = (dvalues.reshape((B, T, self.n_heads, self.embd_dim // self.n_heads))).transpose(0,2,1,3) # (B, T, D) -> (B, T, H, Dh) -> (B, H, T, Dh)
@@ -86,6 +92,8 @@ class SelfAttention:
         # Backprop through fused QKV layer
         self.qkv_layer.backward(d_qkv)
 
-        if self.debug : print(f"ATTN : Backward time : {perf_counter() - self.start}")
+        if self.debug : 
+            np.cuda.Stream.null.synchronize()
+            print(f"ATTN : Backward time : {perf_counter() - self.start}")
 
         return self.qkv_layer.dinputs                                    # (B, T, D)
